@@ -1,0 +1,20 @@
+# Сервер с другими проектами: порты 80/443 заняты, домен приходит через Cloudflare Tunnel.
+# Запуск: docker compose -f docker-compose.yml -f docker-compose.server.yml up -d --build
+# В Cloudflare Tunnel (Public hostname) указать Service: HTTP -> love-web:80
+services:
+  backend:
+    container_name: love-backend
+    mem_limit: 900m          # на сервере ~1.9 ГБ на всех; один запрос ≈ 0.6–0.7 ГБ
+    memswap_limit: 1500m
+    cpus: 1.5
+  web:
+    container_name: love-web
+    ports: !reset []         # на хост ничего не публикуем: порты 80/443 принадлежат другому nginx
+    networks:
+      default: {}
+      tunnel:
+        aliases: [love-web]
+networks:
+  tunnel:
+    name: just-us_default    # сеть, где уже работает cloudflared (в неё добавляется только наш nginx)
+    external: true
