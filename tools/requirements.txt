@@ -1,0 +1,4 @@
+numpy
+opencv-contrib-python-headless
+mediapipe
+# scikit-image  # только для `make_strokes.py --demo` (пересборка тестового портрета)

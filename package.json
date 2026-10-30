@@ -1,0 +1,32 @@
+{
+  "name": "love-in-every-line",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node tools/check-dist.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "setup:py": "python3 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements.txt",
+    "portrait": "tools/.venv/bin/python backend/pipeline.py assets/girlfriend.jpg public/strokes.json",
+    "portrait:demo": "cp tools/demo/strokes.demo.json public/strokes.json",
+    "strokes": "tools/.venv/bin/python tools/make_strokes.py",
+    "portrait:prev": "cp tools/demo/strokes.v3_prev.json public/strokes.json"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

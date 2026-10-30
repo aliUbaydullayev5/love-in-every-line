@@ -1,0 +1,15 @@
+node_modules
+dist
+tools/.venv
+tools/out
+
+# приватные фото
+assets/*
+!assets/README.md
+!assets/.gitkeep
+tools/models/*
+!tools/models/face_landmarker.task
+!tools/models/selfie_segmenter.tflite
+!tools/models/informative_anime_512.onnx
+.env
+screenshots/

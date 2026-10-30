@@ -1,0 +1,11 @@
+node_modules
+dist
+assets
+tools/.venv
+tools/out
+tools/models/informative_contour_512.onnx
+screenshots
+.git
+.playwright-mcp
+**/__pycache__
+.env
