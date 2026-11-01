@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { config } from './config'
 import { StrokeEngine, type EngineState } from './engine/engine'
 import { validateStrokeData } from './engine/types'
-import { usePortraitDownload } from './usePortraitDownload'
+import { usePortraitDownload, useVideoDownload } from './usePortraitDownload'
 
 const MAX_BYTES = 8 * 1024 * 1024
 const TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -106,7 +106,9 @@ export default function Studio() {
   }
 
   const reset = () => { setData(null); setFile(null); setPreview(''); setErr(''); setStep('pick') }
-  const dl = usePortraitDownload(useCallback(() => engine.current, []), state === 'done')
+  const getEngine = useCallback(() => engine.current, [])
+  const dl = usePortraitDownload(getEngine, state === 'done')
+  const vid = useVideoDownload(getEngine, state === 'done')
   const toggle = () => (state === 'playing' ? engine.current?.pause() : engine.current?.play())
 
   return (
@@ -151,6 +153,7 @@ export default function Studio() {
           <nav className="mt-6 flex flex-wrap justify-center gap-1">
             {state !== 'done' && <button className="ctl" onClick={toggle}>{state === 'playing' ? 'Пауза' : 'Продолжить'}</button>}
             {state === 'done' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? 'Скачать портрет' : 'Готовим…'}</button>}
+            {state === 'done' && vid.supported && <button className="ctl ctl-primary" disabled={vid.state === 'recording'} onClick={vid.start}>{vid.state === 'recording' ? `Запись видео… ${Math.round(vid.progress * 100)}%` : vid.state === 'ready' && vid.ios ? 'Сохранить видео' : 'Скачать видео'}</button>}
             <button className="ctl" onClick={() => engine.current?.replay()}>Заново</button>
             <button className="ctl" onClick={reset}>Другое фото</button>
           </nav>
