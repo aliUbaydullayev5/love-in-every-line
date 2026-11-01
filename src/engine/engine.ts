@@ -3,6 +3,22 @@ import type { StrokeData } from './types'
 
 const PAPER = '#fbf6ea' // тот же цвет бумаги, что --color-paper в index.css
 
+/** Лучший доступный формат записи: MP4 (H.264), иначе WebM. null — браузер не умеет записывать canvas. */
+export function pickVideoMime(): { mime: string; ext: 'mp4' | 'webm' } | null {
+  if (typeof MediaRecorder === 'undefined' || !('captureStream' in HTMLCanvasElement.prototype)) return null
+  const list: [string, 'mp4' | 'webm'][] = [
+    ['video/mp4;codecs=avc1.640028', 'mp4'],
+    ['video/mp4;codecs=avc1.42E01E', 'mp4'],
+    ['video/mp4;codecs=avc1', 'mp4'],
+    ['video/mp4', 'mp4'],
+    ['video/webm;codecs=vp9', 'webm'],
+    ['video/webm;codecs=vp8', 'webm'],
+    ['video/webm', 'webm'],
+  ]
+  for (const [mime, ext] of list) if (MediaRecorder.isTypeSupported(mime)) return { mime, ext }
+  return null
+}
+
 export type EngineState = 'idle' | 'playing' | 'paused' | 'done'
 
 /** Canvas-рендерер: каждый штрих физически растёт вдоль своей траектории, нарисованное остаётся. */
@@ -108,6 +124,85 @@ export class StrokeEngine {
     c.globalCompositeOperation = 'multiply'
     c.drawImage(ink, 0, 0)
     return new Promise((res, rej) => out.toBlob((b) => (b ? res(b) : rej(new Error('PNG export failed'))), 'image/png'))
+  }
+
+  /**
+   * Запись самого процесса рисования: штрихи растут тем же кодом (segment) на отдельном холсте с бумагой,
+   * кадры пишет MediaRecorder в реальном времени (длительность видео = длительность анимации).
+   * Запускается только по запросу; на экранную анимацию не влияет.
+   */
+  recordVideo(opts: { width?: number; fps?: number; onProgress?: (p: number) => void; signal?: AbortSignal } = {}): Promise<{ blob: Blob; ext: 'mp4' | 'webm' }> {
+    const fmt = pickVideoMime()
+    if (!fmt) return Promise.reject(new Error('Запись видео не поддерживается этим браузером'))
+    const { width = 1080, fps = 30, onProgress, signal } = opts
+    const k = width / this.data.width
+    const w = Math.round(width / 2) * 2 // H.264 требует чётных размеров
+    const h = Math.round((this.data.height * k) / 2) * 2
+    const ink = document.createElement('canvas')
+    ink.width = w
+    ink.height = h
+    const ictx = ink.getContext('2d')!
+    const out = document.createElement('canvas')
+    out.width = w
+    out.height = h
+    const octx = out.getContext('2d')!
+    const compose = () => {
+      octx.globalCompositeOperation = 'source-over'
+      octx.globalAlpha = 1
+      octx.fillStyle = PAPER
+      octx.fillRect(0, 0, w, h)
+      octx.globalCompositeOperation = 'multiply'
+      octx.drawImage(ink, 0, 0)
+    }
+    const drawn = new Float32Array(this.tl.length)
+    let next = 0
+    const advance = (t: number) => {
+      for (let i = next; i < this.tl.length; i++) {
+        const s = this.tl[i]!
+        if (s.start > t) break
+        const f = Math.min(1, (t - s.start) / (s.end - s.start))
+        if (f > drawn[i]!) {
+          this.segment(i, drawn[i]!, f, ictx, k)
+          drawn[i] = f
+        }
+        if (i === next && drawn[i]! >= 1) next++
+      }
+    }
+    compose()
+    const stream = out.captureStream(fps)
+    const rec = new MediaRecorder(stream, { mimeType: fmt.mime, videoBitsPerSecond: 8_000_000 })
+    const chunks: Blob[] = []
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+    return new Promise((resolve, reject) => {
+      let aborted = false
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        if (aborted) reject(new DOMException('Запись отменена', 'AbortError'))
+        else resolve({ blob: new Blob(chunks, { type: fmt.mime.split(';')[0] }), ext: fmt.ext })
+      }
+      rec.onerror = () => reject(new Error('Ошибка записи видео'))
+      rec.start(1000)
+      const t0 = performance.now()
+      const tick = (now: number) => {
+        if (signal?.aborted) {
+          aborted = true
+          if (rec.state !== 'inactive') rec.stop()
+          return
+        }
+        const t = (now - t0) / 1000
+        advance(Math.min(t, this.duration))
+        compose()
+        onProgress?.(Math.min(1, t / this.duration))
+        if (t >= this.duration + 1.5) { // пауза на готовом рисунке, затем конец
+          advance(this.duration + 1)
+          compose()
+          rec.stop()
+          return
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
   }
 
   private setState(s: EngineState) {

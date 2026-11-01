@@ -3,7 +3,7 @@ import { gsap } from 'gsap'
 import { config } from './config'
 import { StrokeEngine, type EngineState } from './engine/engine'
 import { validateStrokeData } from './engine/types'
-import { usePortraitDownload } from './usePortraitDownload'
+import { usePortraitDownload, useVideoDownload } from './usePortraitDownload'
 
 type Phase = 'intro' | 'drawing' | 'final'
 const SPEEDS = [1, 1.5, 2]
@@ -76,7 +76,9 @@ export default function App() {
     return () => { tl.kill(); gsap.killTweensOf('.petal') }
   }, [phase])
 
-  const dl = usePortraitDownload(useCallback(() => engine.current, []), phase === 'final')
+  const getEngine = useCallback(() => engine.current, [])
+  const dl = usePortraitDownload(getEngine, phase === 'final')
+  const vid = useVideoDownload(getEngine, phase === 'final')
   const toggle = () => (state === 'playing' ? engine.current?.pause() : engine.current?.play())
   const cycleSpeed = () => {
     const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]!
@@ -105,6 +107,7 @@ export default function App() {
       <div className={`mt-6 min-h-[84px] text-center transition-opacity duration-700 ${phase === 'intro' ? 'opacity-0' : 'opacity-100'}`}>
         <p className="final-text font-serif text-2xl italic text-graphite opacity-0 sm:text-4xl">{config.finalText}</p>
         <p className="final-name mt-2 font-sans text-[11px] font-light uppercase tracking-[0.35em] text-rose opacity-0">{config.herName}</p>
+        {(vid.state === 'recording' || vid.error) && <p className="mt-2 font-sans text-[10px] font-light uppercase tracking-[0.2em] text-graphite/60">{vid.error || 'Идёт запись видео — не сворачивайте вкладку'}</p>}
         {phase === 'drawing' && (
           <div className="mx-auto mt-6 h-px w-40 bg-graphite/10">
             <div ref={bar} className="h-full origin-left bg-rose/70" style={{ transform: 'scaleX(0)' }} />
@@ -116,6 +119,7 @@ export default function App() {
         {phase === 'drawing' && <button className="ctl" onClick={toggle}>{state === 'playing' ? 'Пауза' : 'Продолжить'}</button>}
         {phase === 'drawing' && <button className="ctl" onClick={cycleSpeed}>{speed}×</button>}
         {phase === 'final' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? 'Скачать портрет' : 'Готовим…'}</button>}
+        {phase === 'final' && vid.supported && <button className="ctl ctl-primary" disabled={vid.state === 'recording'} onClick={vid.start}>{vid.state === 'recording' ? `Запись видео… ${Math.round(vid.progress * 100)}%` : vid.state === 'ready' && vid.ios ? 'Сохранить видео' : 'Скачать видео'}</button>}
         <button className="ctl" onClick={replay}>Заново</button>
         {phase !== 'intro' && <a className="ctl" href="/studio">Нарисовать своё ♡</a>}
       </nav>
