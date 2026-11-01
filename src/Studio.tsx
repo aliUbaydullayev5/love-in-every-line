@@ -3,6 +3,7 @@ import { config } from './config'
 import { StrokeEngine, type EngineState } from './engine/engine'
 import { validateStrokeData } from './engine/types'
 import { usePortraitDownload, useVideoDownload } from './usePortraitDownload'
+import { msg } from './messages'
 
 const MAX_BYTES = 8 * 1024 * 1024
 const TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -152,11 +153,19 @@ export default function Studio() {
           {state === 'done' && <p className="mt-5 font-serif text-xl italic sm:text-3xl">{config.finalText}</p>}
           <nav className="mt-6 flex flex-wrap justify-center gap-1">
             {state !== 'done' && <button className="ctl" onClick={toggle}>{state === 'playing' ? 'Пауза' : 'Продолжить'}</button>}
-            {state === 'done' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? 'Скачать портрет' : 'Готовим…'}</button>}
-            {state === 'done' && vid.supported && <button className="ctl ctl-primary" disabled={vid.state === 'recording'} onClick={vid.start}>{vid.state === 'recording' ? `Запись видео… ${Math.round(vid.progress * 100)}%` : vid.state === 'ready' && vid.ios ? 'Сохранить видео' : 'Скачать видео'}</button>}
+            {state === 'done' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? msg.png : msg.pngPreparing}</button>}
+            {state === 'done' && vid.supported && <button className="ctl ctl-primary" disabled={vid.state === 'recording'} onClick={vid.start}>{vid.state === 'recording' ? msg.videoRecording(Math.round(vid.progress * 100)) : vid.state === 'ready' && vid.ios ? msg.videoSaveIOS : msg.video}</button>}
             <button className="ctl" onClick={() => engine.current?.replay()}>Заново</button>
             <button className="ctl" onClick={reset}>Другое фото</button>
           </nav>
+          {state === 'done' && (vid.state === 'recording' || vid.state === 'ready' || vid.error) && (
+            <p className="mt-3 max-w-xs text-center font-sans text-[10px] font-light uppercase tracking-[0.2em] text-graphite/60">
+              {vid.error ||
+                (vid.state === 'recording' ? (
+                  <>{vid.progress < 0.6 ? msg.videoHintStart : msg.videoHintAlmost}<br />{msg.videoHintStay}</>
+                ) : vid.ios ? msg.videoDoneIOS : msg.videoDone)}
+            </p>
+          )}
         </>
       )}
     </main>

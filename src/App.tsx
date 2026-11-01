@@ -4,6 +4,7 @@ import { config } from './config'
 import { StrokeEngine, type EngineState } from './engine/engine'
 import { validateStrokeData } from './engine/types'
 import { usePortraitDownload, useVideoDownload } from './usePortraitDownload'
+import { msg } from './messages'
 
 type Phase = 'intro' | 'drawing' | 'final'
 const SPEEDS = [1, 1.5, 2]
@@ -107,7 +108,14 @@ export default function App() {
       <div className={`mt-6 min-h-[84px] text-center transition-opacity duration-700 ${phase === 'intro' ? 'opacity-0' : 'opacity-100'}`}>
         <p className="final-text font-serif text-2xl italic text-graphite opacity-0 sm:text-4xl">{config.finalText}</p>
         <p className="final-name mt-2 font-sans text-[11px] font-light uppercase tracking-[0.35em] text-rose opacity-0">{config.herName}</p>
-        {(vid.state === 'recording' || vid.error) && <p className="mt-2 font-sans text-[10px] font-light uppercase tracking-[0.2em] text-graphite/60">{vid.error || 'Идёт запись видео — не сворачивайте вкладку'}</p>}
+        {(vid.state === 'recording' || vid.state === 'ready' || vid.error) && (
+          <p className="mt-2 font-sans text-[10px] font-light uppercase tracking-[0.2em] text-graphite/60">
+            {vid.error ||
+              (vid.state === 'recording' ? (
+                <>{vid.progress < 0.6 ? msg.videoHintStart : msg.videoHintAlmost}<br />{msg.videoHintStay}</>
+              ) : vid.ios ? msg.videoDoneIOS : msg.videoDone)}
+          </p>
+        )}
         {phase === 'drawing' && (
           <div className="mx-auto mt-6 h-px w-40 bg-graphite/10">
             <div ref={bar} className="h-full origin-left bg-rose/70" style={{ transform: 'scaleX(0)' }} />
@@ -118,8 +126,8 @@ export default function App() {
       <nav className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] flex max-w-full flex-wrap justify-center gap-1 px-2 transition-opacity duration-700 ${phase === 'intro' ? 'opacity-0' : 'opacity-100'}`}>
         {phase === 'drawing' && <button className="ctl" onClick={toggle}>{state === 'playing' ? 'Пауза' : 'Продолжить'}</button>}
         {phase === 'drawing' && <button className="ctl" onClick={cycleSpeed}>{speed}×</button>}
-        {phase === 'final' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? 'Скачать портрет' : 'Готовим…'}</button>}
-        {phase === 'final' && vid.supported && <button className="ctl ctl-primary" disabled={vid.state === 'recording'} onClick={vid.start}>{vid.state === 'recording' ? `Запись видео… ${Math.round(vid.progress * 100)}%` : vid.state === 'ready' && vid.ios ? 'Сохранить видео' : 'Скачать видео'}</button>}
+        {phase === 'final' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? msg.png : msg.pngPreparing}</button>}
+        {phase === 'final' && vid.supported && <button className="ctl ctl-primary" disabled={vid.state === 'recording'} onClick={vid.start}>{vid.state === 'recording' ? msg.videoRecording(Math.round(vid.progress * 100)) : vid.state === 'ready' && vid.ios ? msg.videoSaveIOS : msg.video}</button>}
         <button className="ctl" onClick={replay}>Заново</button>
         {phase !== 'intro' && <a className="ctl" href="/studio">Нарисовать своё ♡</a>}
       </nav>
