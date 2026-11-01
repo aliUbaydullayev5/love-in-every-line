@@ -1,6 +1,8 @@
 import { buildTimeline, type Scheduled } from './timeline'
 import type { StrokeData } from './types'
 
+const PAPER = '#fbf6ea' // тот же цвет бумаги, что --color-paper в index.css
+
 export type EngineState = 'idle' | 'playing' | 'paused' | 'done'
 
 /** Canvas-рендерер: каждый штрих физически растёт вдоль своей траектории, нарисованное остаётся. */
@@ -39,12 +41,10 @@ export class StrokeEngine {
     return this.canvas.width / this.data.width
   }
 
-  private segment(i: number, from: number, to: number) {
+  private segment(i: number, from: number, to: number, ctx: CanvasRenderingContext2D = this.ctx, k: number = this.scale()) {
     const s = this.tl[i]!
     const { pts, w, o, color } = s.stroke
     const n = s.cum.length
-    const ctx = this.ctx
-    const k = this.scale()
     ctx.strokeStyle = color
     ctx.globalAlpha = o
     ctx.lineWidth = w * k
@@ -85,6 +85,29 @@ export class StrokeEngine {
     this.drawn.fill(0)
     this.nextIdx = 0
     this.advance(this.t)
+  }
+
+  /**
+   * Готовый портрет в PNG: те же штрихи тем же кодом, но целиком и в высоком разрешении, на бумаге (не прозрачный фон).
+   * Как на экране: штрихи на прозрачном слое, затем multiply на цвет бумаги.
+   */
+  exportPng(width = 2160): Promise<Blob> {
+    const k = width / this.data.width
+    const h = Math.round(this.data.height * k)
+    const ink = document.createElement('canvas')
+    ink.width = width
+    ink.height = h
+    const ictx = ink.getContext('2d')!
+    for (let i = 0; i < this.tl.length; i++) this.segment(i, 0, 1, ictx, k)
+    const out = document.createElement('canvas')
+    out.width = width
+    out.height = h
+    const c = out.getContext('2d')!
+    c.fillStyle = PAPER
+    c.fillRect(0, 0, width, h)
+    c.globalCompositeOperation = 'multiply'
+    c.drawImage(ink, 0, 0)
+    return new Promise((res, rej) => out.toBlob((b) => (b ? res(b) : rej(new Error('PNG export failed'))), 'image/png'))
   }
 
   private setState(s: EngineState) {

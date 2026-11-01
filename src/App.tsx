@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { config } from './config'
 import { StrokeEngine, type EngineState } from './engine/engine'
 import { validateStrokeData } from './engine/types'
+import { usePortraitDownload } from './usePortraitDownload'
 
 type Phase = 'intro' | 'drawing' | 'final'
 const SPEEDS = [1, 1.5, 2]
@@ -66,13 +67,16 @@ export default function App() {
     tl.fromTo('.final-text', { opacity: 0, y: 16, letterSpacing: '0.08em' }, { opacity: 1, y: 0, letterSpacing: '0.01em', duration: 2.2, ease: 'power2.out' })
     tl.fromTo('.final-name', { opacity: 0 }, { opacity: 1, duration: 1.6 }, '-=1.2')
     root.current?.querySelectorAll('.petal').forEach((p, i) => {
-      gsap.fromTo(p, { x: `${5 + Math.random() * 90}vw`, y: '-5vh', opacity: 0, rotate: 0 },
-        { y: '105vh', x: `+=${(Math.random() - 0.5) * 120}`, rotate: 360 + Math.random() * 360, opacity: 0.55, duration: 9 + Math.random() * 6, delay: i * 0.7, ease: 'none', repeat: -1,
-          keyframes: undefined })
+      // лепестки идут по боковым полосам (3–25vw и 75–97vw), чтобы не пролетать над лицом в центре
+      const side = i % 2 === 0 ? 3 + Math.random() * 22 : 75 + Math.random() * 22
+      const spin = (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 320)
+      gsap.fromTo(p, { x: `${side}vw`, y: '-5vh', opacity: 0, rotate: 0, scale: 0.8 + Math.random() * 0.45 },
+        { y: '105vh', x: `+=${(Math.random() - 0.5) * 90}`, rotate: spin, opacity: 0.55, duration: 9 + Math.random() * 5, delay: i * 0.5, ease: 'none', repeat: -1, repeatDelay: Math.random() * 1.5 })
     })
     return () => { tl.kill(); gsap.killTweensOf('.petal') }
   }, [phase])
 
+  const dl = usePortraitDownload(useCallback(() => engine.current, []), phase === 'final')
   const toggle = () => (state === 'playing' ? engine.current?.pause() : engine.current?.play())
   const cycleSpeed = () => {
     const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]!
@@ -111,11 +115,12 @@ export default function App() {
       <nav className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] flex max-w-full flex-wrap justify-center gap-1 px-2 transition-opacity duration-700 ${phase === 'intro' ? 'opacity-0' : 'opacity-100'}`}>
         {phase === 'drawing' && <button className="ctl" onClick={toggle}>{state === 'playing' ? 'Пауза' : 'Продолжить'}</button>}
         {phase === 'drawing' && <button className="ctl" onClick={cycleSpeed}>{speed}×</button>}
+        {phase === 'final' && <button className="ctl ctl-primary" disabled={!dl.ready} onClick={dl.save}>{dl.ready ? 'Скачать портрет' : 'Готовим…'}</button>}
         <button className="ctl" onClick={replay}>Заново</button>
         {phase !== 'intro' && <a className="ctl" href="/studio">Нарисовать своё ♡</a>}
       </nav>
 
-      {phase === 'final' && Array.from({ length: 7 }, (_, i) => <span key={i} className="petal" />)}
+      {phase === 'final' && Array.from({ length: 9 }, (_, i) => <span key={i} className="petal" />)}
     </div>
   )
 }
