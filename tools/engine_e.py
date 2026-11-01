@@ -162,6 +162,7 @@ def lip_stage(img, gray, C, strokes, rng, sketch_label=""):
         cv2.polylines(m_, [pp.reshape(-1, 1, 2)], False, 255, 1, cv2.LINE_AA)
         Cl = 1 - (1 - Cl) * (1 - m_.astype(np.float32) / 255 * st["o"])
     Tb, n_sh = cv2.GaussianBlur(Tl, (0, 0), 1.0), 0
+    occ = np.zeros((H, W), np.uint8)  # занятость: не ставим штрихи друг на друга (иначе в уголке рта копится тёмный сгусток)
     for rd in range(3):
         Cb = cv2.GaussianBlur(Cl, (0, 0), 1.0)
         err = (Tb - Cb) * gate
@@ -173,12 +174,14 @@ def lip_stage(img, gray, C, strokes, rng, sketch_label=""):
         seeds = rng.choice(flat.size, size=min(260, int((flat > 0).sum())), p=flat)
         for sd in seeds:
             sy, sx = divmod(int(sd), W)
+            if occ[sy, sx]:
+                continue
             pts_ = []
             for sgn in (1, -1):
                 px, py, pa, half = float(sx), float(sy), None, []
                 for _ in range(10):
                     ix, iy_ = int(px), int(py)
-                    if not (0 <= ix < W and 0 <= iy_ < H) or not gate[iy_, ix] or err[iy_, ix] < 0.015:
+                    if not (0 <= ix < W and 0 <= iy_ < H) or not gate[iy_, ix] or err[iy_, ix] < 0.015 or (len(half) > 1 and occ[iy_, ix]):
                         break
                     ang = th[iy_, ix]
                     if pa is not None:
@@ -198,6 +201,7 @@ def lip_stage(img, gray, C, strokes, rng, sketch_label=""):
             F = np.zeros((H, W), np.uint8)
             cv2.polylines(F, [pp.reshape(-1, 1, 2)], False, 255, 1, cv2.LINE_AA)
             Cl = 1 - (1 - Cl) * (1 - F.astype(np.float32) / 255 * o)
+            cv2.polylines(occ, [pp.reshape(-1, 1, 2)], False, 1, 3)
             emit(np.array(pts, np.float32), "hatch", 0.5, o, "#2d2d32")
             n_sh += 1
     strokes.extend(added)
