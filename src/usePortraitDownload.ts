@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { pickVideoMime, type StrokeEngine } from './engine/engine'
+import { msg } from './messages'
 
 const NAME = 'love-in-every-line.png'
 export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -102,7 +103,7 @@ export function useVideoDownload(getEngine: () => StrokeEngine | null, active: b
       if (!isIOS()) await saveFile(file)
     } catch (e) {
       setState('idle')
-      if ((e as DOMException).name !== 'AbortError') setError('Не удалось записать видео')
+      if ((e as DOMException).name !== 'AbortError') setError(msg.videoError)
     }
   }, [getEngine])
 
