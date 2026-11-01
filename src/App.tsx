@@ -68,11 +68,11 @@ export default function App() {
     tl.fromTo('.final-text', { opacity: 0, y: 16, letterSpacing: '0.08em' }, { opacity: 1, y: 0, letterSpacing: '0.01em', duration: 2.2, ease: 'power2.out' })
     tl.fromTo('.final-name', { opacity: 0 }, { opacity: 1, duration: 1.6 }, '-=1.2')
     root.current?.querySelectorAll('.petal').forEach((p, i) => {
-      // лепестки идут по боковым полосам (3–25vw и 75–97vw), чтобы не пролетать над лицом в центре
-      const side = i % 2 === 0 ? 3 + Math.random() * 22 : 75 + Math.random() * 22
+      // лепестки идут по боковым полосам (2–20vw и 80–97vw от левого края), чтобы не пролетать над лицом в центре
+      const side = i % 2 === 0 ? 2 + Math.random() * 18 : 80 + Math.random() * 17
       const spin = (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 320)
       gsap.fromTo(p, { x: `${side}vw`, y: '-5vh', opacity: 0, rotate: 0, scale: 0.8 + Math.random() * 0.45 },
-        { y: '105vh', x: `+=${(Math.random() - 0.5) * 90}`, rotate: spin, opacity: 0.55, duration: 9 + Math.random() * 5, delay: i * 0.5, ease: 'none', repeat: -1, repeatDelay: Math.random() * 1.5 })
+        { y: '105vh', x: `+=${(Math.random() - 0.5) * 50}`, rotate: spin, opacity: 0.55, duration: 9 + Math.random() * 5, delay: i * 0.5, ease: 'none', repeat: -1, repeatDelay: Math.random() * 1.5 })
     })
     return () => { tl.kill(); gsap.killTweensOf('.petal') }
   }, [phase])
